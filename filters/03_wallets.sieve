@@ -1,9 +1,13 @@
 # WALLETS & REWARDS (promo split)
 # These send heavy marketing alongside transaction alerts
 if address :domain :matches "From" [
+    "*cred.club",
+    "*freecharge.com",
+    "*lazypay.in",
+    "*mobikwik.com",
     "*paytm.com",
     "*phonepe.com",
-    "*cred.club"
+    "*simpl.one"
 ] {
     if exists ["List-Unsubscribe"] {
         fileinto "Promotions";
