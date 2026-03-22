@@ -1,47 +1,36 @@
-# Proton Mail Sieve Filters
+# Proton Sieve India
 
-Personal sieve filters for Proton Mail, organised by category for easy maintenance.
+Curated [Sieve](https://proton.me/support/sieve-advanced-custom-filters) email filters for Proton Mail, optimised for services commonly used in India. Covers 180+ domains across finance, banking, e-commerce, travel, utilities, and more.
 
-## Structure
+## Setup
 
-```
-filters/
-├── 00_spam.sieve           # Proton spam threshold check
-├── 01_finance.sieve        # Investments, brokers, insurance, tax
-├── 02_accounts.sieve       # Banks, cards, payment gateways, identity
-├── 03_wallets.sieve        # Paytm, PhonePe, CRED (promo split)
-├── 04_travel.sieve         # Airlines, rail, cabs, FASTag (promo split)
-├── 05_ecommerce.sieve      # Amazon, Flipkart, Swiggy, etc. (promo split)
-├── 06_courier.sieve        # BlueDart, Delhivery, FedEx (always Receipts)
-├── 07_health.sieve         # Pharmeasy, Practo, labs (promo split)
-├── 08_utilities.sieve      # Electricity, gas, telecom (promo split)
-├── 09_government.sieve     # .gov.in / .nic.in catch-all
-├── 10_newsletters.sieve    # Known newsletter senders
-└── 99_promotions.sieve     # Catch-all for List-Unsubscribe
-```
+### 1. Create Folders & Labels in Proton Mail
 
-## Folder & Label Mapping
+Before uploading the sieve script, create these in **Proton Mail → Settings → Folders / Labels**.
 
-| Folder       | What lands here                                    |
-|------------- |----------------------------------------------------|
-| Finance      | Investment alerts, insurance, tax, MF statements   |
-| Accounts     | Bank alerts, OTPs, payment confirmations, identity |
-| Receipts     | Order confirmations, tracking, bills, lab reports   |
-| Promotions   | Marketing emails (via List-Unsubscribe detection)  |
-| Newsletters  | Subscribed newsletter senders                      |
-| Saved        | Manual saves                                       |
+> Sieve's `fileinto` silently discards mail if the target folder or label does not exist.
 
-| Label        | Applied alongside folder                           |
-|------------- |----------------------------------------------------|
-| Travel       | Booking confirmations, boarding passes, cab rides   |
-| Billing      | Utility bills, telecom bills                       |
-| Actionable   | (Manual)                                           |
-| Alias        | (Manual)                                           |
+**Folders** (create all):
 
-## How It Works
+| Folder       | What lands here                                     |
+|------------- |-----------------------------------------------------|
+| Finance      | Investment alerts, insurance, tax, MF statements    |
+| Accounts     | Bank alerts, OTPs, payment confirmations, identity  |
+| Receipts     | Order confirmations, tracking, bills, lab reports    |
+| Promotions   | Marketing emails (via List-Unsubscribe detection)   |
+| Newsletters  | Subscribed newsletter senders                       |
+| Saved        | Manual saves (not auto-filtered)                    |
 
-Proton Mail accepts a single sieve script. The `build.sh` script concatenates all
-numbered filter files into one `combined.sieve` ready for upload.
+**Labels** (create these):
+
+| Label        | Applied alongside folder                            |
+|------------- |-----------------------------------------------------|
+| Travel       | Booking confirmations, boarding passes, cab rides    |
+| Billing      | Utility bills, telecom bills                        |
+| Actionable   | (Manual — tag emails you need to act on)            |
+| Alias        | (Manual — tag emails sent to alias addresses)       |
+
+### 2. Upload the Filter
 
 ```bash
 ./build.sh
@@ -50,39 +39,110 @@ numbered filter files into one `combined.sieve` ready for upload.
 Then paste the contents of `combined.sieve` into:
 **Proton Mail → Settings → Filters → Sieve editor**
 
-## Design Principles
+Alternatively, copy `combined.sieve` directly from this repo — it is kept up-to-date via GitHub Actions.
 
-1. **Whitelisted domains skip the promo filter entirely.** Finance and Accounts
-   sections use `stop` immediately — no `List-Unsubscribe` check. These are
-   high-trust senders where even marketing-adjacent emails (membership reminders,
-   fee changes) should not be filtered.
+## Structure
 
-2. **Promo split for mixed senders.** E-commerce, health, travel, utilities, and
-   wallets check for `List-Unsubscribe`. Transactional emails (order confirmations,
-   lab reports, boarding passes) rarely carry this header. Marketing emails almost
-   always do.
+```
+filters/
+├── 00_spam.sieve           # Proton spam threshold check
+├── 01_finance.sieve        # Investments, brokers, insurance, tax
+├── 02_accounts.sieve       # Banks, cards, payment gateways, identity
+├── 03_wallets.sieve        # Paytm, PhonePe, CRED, MobiKwik (promo split)
+├── 04_travel.sieve         # Airlines, OTAs, rail, cabs, hotels (promo split)
+├── 05_ecommerce.sieve      # Amazon, Flipkart, Swiggy, Meesho (promo split)
+├── 06_courier.sieve        # BlueDart, Delhivery, DTDC, FedEx (always Receipts)
+├── 07_health.sieve         # Pharmacies, hospitals, labs, fitness (promo split)
+├── 08_utilities.sieve      # Electricity, gas, telecom, DTH (promo split)
+├── 09_government.sieve     # .gov.in / .nic.in catch-all
+├── 10_newsletters.sieve    # Newsletter platforms (Substack, Beehiiv, etc.)
+├── 11_entertainment.sieve  # OTT & streaming (Netflix, Hotstar, Spotify)
+├── 12_education.sieve      # Online learning (Coursera, Udemy, upGrad)
+├── 13_jobs.sieve           # Job portals (Naukri, Indeed, Internshala)
+└── 99_promotions.sieve     # Catch-all for List-Unsubscribe
+```
 
-3. **Labels applied alongside folders.** Travel and Billing labels are added to
-   Receipts so you can filter within the folder. Sieve's `fileinto` applies labels
-   when the target is a Proton label rather than a folder.
+## How It Works
 
-4. **Catch-all at the bottom.** Anything not matched by a specific rule but carrying
-   `List-Unsubscribe` goes to Promotions. Everything else stays in Inbox.
+### Processing Order
 
-5. **`.bank.in` wildcard.** RBI mandated all Indian banks to migrate to `.bank.in`
-   by Oct 2025. A single wildcard future-proofs the script for any bank.
+Proton Mail runs rules in the order they appear in the sieve script. The `build.sh` script concatenates all numbered filter files into one `combined.sieve`. Each rule uses `stop` to prevent further processing once matched.
 
-## Adding a New Sender
+### Domain Matching
+
+Uses `address :domain :matches "From"` with wildcard patterns (`*domain.com`) to match subdomains (e.g., `alerts.icicibank.com`).
+
+### Promo Split
+
+The key design pattern for "mixed" senders (e-commerce, travel, utilities, etc.):
+
+- **`List-Unsubscribe` header present** → Marketing email → **Promotions**
+- **`List-Unsubscribe` header absent** → Transactional email → **Receipts** (or category folder)
+
+High-trust senders (Finance, Accounts, Courier) skip this check entirely — all their emails go directly to their folder.
+
+### Wildcards
+
+- `*.bank.in` — Catches all RBI-regulated banks using the `.bank.in` TLD
+- `*.gov.in` / `*.nic.in` — Government catch-all (routes to Accounts)
+
+## Customisation
+
+### Adding Your State Electricity Board
+
+The `08_utilities.sieve` file includes major providers. Add your state's board:
+
+```sieve
+    "*bescom.karnataka.gov.in",   # Karnataka
+    "*tnebnet.org",               # Tamil Nadu
+    "*wbsedcl.in",                # West Bengal
+```
+
+> State electricity boards using `.gov.in` domains are already caught by `09_government.sieve`.
+
+### Adding Personal Newsletters
+
+Edit `10_newsletters.sieve` and add your subscribed domains:
+
+```sieve
+    "*finshots.in",
+    "*the-ken.com",
+    "*morningcontext.com"
+```
+
+### Adding Other Domains
 
 1. Identify which category the sender belongs to.
 2. Open the corresponding `filters/XX_category.sieve` file.
 3. Add the domain (use `*domain.com` format for wildcard subdomain matching).
 4. Run `./build.sh` and paste the output into Proton's sieve editor.
-5. Commit and push.
 
-## Updating After Domain Changes
+### Updating After Domain Changes
 
-When a sender changes domains (e.g., Axis Bank moved alerts from `axisbank.com` to
-`axis.bank.in`), add the new domain alongside the old one. Don't remove old domains
-immediately — some automated emails may still come from legacy addresses during
-transition periods.
+When a sender changes domains (e.g., Axis Bank moved alerts from `axisbank.com` to `axis.bank.in`), add the new domain alongside the old one. Don't remove old domains immediately — some automated emails may still come from legacy addresses.
+
+## Contributing
+
+Contributions are welcome. When submitting a PR:
+
+1. Add domains to the correct category file in alphabetical order within their comment group.
+2. Use `*domain.com` format (wildcard prefix for subdomain matching).
+3. Ensure the domain is not already listed in another category file.
+4. Run `./build.sh` to verify the combined output.
+5. Briefly note what the service is if it's not widely known.
+
+### What to contribute
+
+- Missing major Indian services (banks, insurers, e-commerce, etc.)
+- Regional utility providers with a comment noting the region
+- Corrections to misplaced domains
+
+### What NOT to contribute
+
+- Personal newsletter subscriptions (add those locally)
+- Niche/local businesses with very small user bases
+- International services without significant Indian usage
+
+## License
+
+MIT
