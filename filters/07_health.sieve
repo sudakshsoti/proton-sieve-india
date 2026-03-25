@@ -23,7 +23,9 @@ if address :domain :matches "From" [
     "*cultfit.in",
     "*healthifyme.com"
 ] {
-    if exists ["List-Unsubscribe"] {
+    if header :matches "Subject" ["*test report*", "*lab report*", "*diagnostic report*", "*sample collected*"] {
+        fileinto "Receipts";
+    } elsif exists ["List-Unsubscribe"] {
         fileinto "Promotions";
     } else {
         fileinto "Receipts";
